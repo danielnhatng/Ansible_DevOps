@@ -1,0 +1,59 @@
+---
+# tasks file for gitlab
+
+- name: Setup dependencies
+  apt:
+    name: [wget, curl, openssh-server, perl, postfix]
+    state: present
+
+# - name: Enable open-ssh
+#   become: yes
+#   service:
+#     name: open-ssh
+#     state: started
+
+- name: Enable postfix
+  service: 
+    name: postfix
+    state: started
+
+
+- name: Open Firewall Ports 
+  firewalld: 
+    zone: public
+    permanent: true
+    port: 80/tcp
+    state: enabled
+    immediate: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Open port
+  ufw:
+    port: '80'
+    protocol: tcp
+    rule: allow
+  when: ansible_os_family == 'Debian'  
+
+
+- name: Create gitlab setup folder
+  file:
+    path: /etc/gitlab_setup
+    state: directory
+
+- name: Get gitlab script 
+  uri:  
+    url: 'https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.deb.sh'
+    dest: /etc/gitlab_setup/script.deb.sh
+    mode: '0755'
+
+- name: Download package
+  command: /etc/gitlab_setup/script.deb.sh
+
+
+- name: Install GitLab
+  apt:
+    name: gitlab-ee
+    state: present
+
+- name: Enable gitlab
+  shell: gitlab-ctl reconfigure

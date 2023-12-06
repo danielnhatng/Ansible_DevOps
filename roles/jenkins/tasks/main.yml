@@ -1,0 +1,105 @@
+---
+# tasks file for jenkins
+- include_vars: 'main.yml'
+#RedHat
+- name: Setup dependencies Ubuntu
+  apt:
+    name: wget
+    state: present
+  when: ansible_os_family == 'RedHat'
+- name: Open Firewall Port RedHat
+  firewalld:
+    zone: public
+    port: 8080/tcp
+    permanent: true
+    state: enabled
+    immediate: true
+  when: ansible_os_family == 'RedHat'
+
+- name: Upgrades yum
+  yum:
+    update_cache: true
+  when: ansible_os_family == 'RedHat'
+
+- name: Install java version 11
+  yum:
+    name: java-11-openjdk-devel
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Add jenkins repo rpm_key
+  rpm_key:
+    key: "{{jenkins.redhat.key}}"
+  when: ansible_os_family == 'RedHat'
+
+
+- name: Add jenkins repo RedHat
+  yum_repository:
+    name: jenkins
+    description: Jenkins repo
+    baseurl: "{{jenkins.redhat.repo}}"
+    gpgcheck: yes
+    gpgkey: "{{jenkins.redhat.key}}" 
+  when: ansible_os_family == 'RedHat'
+
+- name: Install jenkins
+  apt:
+    name: jenkins
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+
+# Ubuntu
+
+- name: Setup dependencies Ubuntu
+  apt:
+    name: wget
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Open Firewall Port Ubuntu
+  ufw: 
+    rule: allow
+    proto: tcp
+    port: '8080'
+  when: ansible_os_family == 'Debian'
+
+- name: Upgrades apt
+  apt:
+    update_cache: true
+  when: ansible_os_family == 'Debian'
+
+
+- name: Install java version 11
+  apt:
+    name: openjdk-11-jdk
+    state: present
+  when: ansible_os_family == 'Debian'
+
+
+- name: Add jenkins repo apt_key
+  apt_key:
+    url: '{{ jenkins.ubuntu.key }}'
+    state: present
+  when: ansible_os_family == 'Debian'
+
+
+
+- name: Add jenkins repo Ubuntu
+  apt_repository:
+    repo: "{{jenkins.ubuntu.repo}}"
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install jenkins
+  apt:
+    name: jenkins
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Start and enable jenkins
+  systemd:
+    name: jenkins
+    state: started
+    enabled: yes
+  when: ansible_os_family == 'Debian'

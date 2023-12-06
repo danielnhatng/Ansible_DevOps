@@ -1,0 +1,55 @@
+- name: All steps to install gitlab with ansible
+  hosts: centos_gitlab
+  become: yes
+  tasks:
+    - name: Setup dependencies
+      yum:
+        name: [wget, curl, openssh-server, perl, postfix]
+        state: present
+
+    # - name: Enable open-ssh
+    #   become: yes
+    #   service:
+    #     name: open-ssh
+    #     state: started
+
+    - name: Enable postfix
+      become: yes
+      service: 
+        name: postfix
+        state: started
+
+
+    - name: Open Firewall Ports 
+      become: yes
+      firewalld: 
+        zone: public
+        permanent: true
+        port: 80/tcp
+        state: enabled
+        immediate: yes
+   
+
+    - name: Create gitlab setup folder
+      file:
+        path: /etc/gitlab_setup
+        state: directory
+
+    - name: Get gitlab script 
+      become: yes
+      uri:  
+        url: ' https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh'
+        dest: /etc/gitlab_setup
+        mode: '0755'
+    
+    - name: Download package
+      become: yes
+      command: /etc/gitlab_setup/script.rpm.sh
+
+
+    - name: Install GitLab
+      yum:
+        name: gitlab-ee
+        state: present
+    # - name: Enable gitlab
+    #   shell: gitlab-ctl reconfigure

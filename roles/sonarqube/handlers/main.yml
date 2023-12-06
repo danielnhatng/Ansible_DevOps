@@ -1,0 +1,7 @@
+---
+# handlers file for sonarqube
+- name: Restart PostgreSQL 12 service
+  systemd:
+    name: postgresql
+    state: restarted
+    

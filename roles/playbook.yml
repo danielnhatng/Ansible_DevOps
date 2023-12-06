@@ -1,0 +1,10 @@
+- name: Ansible-playbook
+  hosts: ubuntu_target2
+  become: yes
+  roles:
+    # - gitlab
+    # - sonarqube
+    # - googleCLoud_CLI
+    # - jenkins
+    - nexus
+    # - docker  

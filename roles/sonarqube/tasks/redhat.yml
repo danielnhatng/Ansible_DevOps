@@ -1,0 +1,252 @@
+- name: Install dependencies
+  yum:
+      name: "{{item}}"
+      state: present
+  loop:
+    - unzip
+    - wget
+
+
+
+
+- name: Add vm.max_map_count parameter
+  lineinfile:
+    path: /etc/sysctl.conf
+    line: 'vm.max_map_count=262144'
+    state: present
+
+
+
+- name: Add fs.file-max parameter
+  lineinfile:
+    path: /etc/sysctl.conf
+    line: 'fs.file-max=65536'
+    state: present
+
+
+
+- name: Reload Sysctl Parameters
+  systemd:
+    name: systemd-sysctl.service
+    state: restarted
+
+
+
+- name: Modify SELinux Configuration
+  lineinfile:
+    path: /etc/selinux/config
+    regexp: '^SELINUX='
+    line: 'SELINUX=permissive'
+    state: present
+
+
+
+- name: Create user Sonarqube Admin
+  ansible.builtin.user:
+    name: sonar
+    comment: Sonar Admin
+
+
+
+- name: Add PostgreSQL to Yum Repo
+  yum:
+    name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+    state: present
+
+
+
+- name: Install PostgreSQL Server and Client Packages
+  yum:
+    name: '{{item}}'
+    state: present
+  loop:
+    - postgresql14-server
+    - postgresql14
+
+
+- name: Initialize PostgreSQL Database
+  command: /usr/pgsql-14/bin/postgresql-14-setup initdb
+  ignore_errors: true
+
+- name: Enable postgresql on boot
+  service:
+    name: postgresql-14
+    state: started
+    enabled: yes
+
+
+
+- name: Change "peer" to "trust" and "ident" to "md5" in pg_hba.conf file
+  replace:
+    path: /var/lib/pgsql/14/data/pg_hba.conf
+    regexp: 'peer'
+    replace: 'trust'
+
+
+
+- replace:
+    path: /var/lib/pgsql/14/data/pg_hba.conf
+    regexp: 'scram-sha-256'
+    replace: 'trust'
+
+
+
+- name: set Listen address to your server for all interfaces
+  lineinfile:
+    path: /var/lib/pgsql/14/data/postgresql.conf
+    regexp: '^listen_addresses'
+    line: "listen_addresses = '*'"
+    state: present
+
+
+
+- name: Add config to pg_hba.conf file
+  blockinfile:
+      path: /var/lib/pgsql/14/data/pg_hba.conf
+      block: |
+          # Accept from anywhere
+          host    all             all             0.0.0.0/0            trust
+          # Or accept from trusted subnet
+          host    all             all             10.38.87.0/24        trust
+      state: present
+
+- name: Restart PostgreSQL
+  systemd:
+    name: postgresql-14.service
+    state: restarted
+
+- name: Install python psycopg2
+  yum:
+        name: python-psycopg2
+        state: present
+
+
+
+- name: Change PostgreSQL 14 user password
+  postgresql_user:
+        db: postgres
+        name: postgres
+        password: StrongPassword
+
+- name: Create sonarqube database
+  postgresql_db:
+        name: sonarqube
+
+- name: Create sonarqube user
+  postgresql_user:
+        db: sonarqube
+        name: sonarqube
+        password: StrongPassword
+        priv: ALL
+        state: present
+
+
+
+- name: Download Sonarqube Archive
+  ansible.builtin.get_url:
+    url: https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-9.9.1.69595.zip
+    dest: /opt/sonarqube-9.9.1.69595.zip
+    mode: '0755'
+
+
+
+- name: Stat Sonar9
+  stat: path=/opt/sonarqube-9.9.1.69595
+  register: sonar9
+
+
+
+- name: Unarchive Sonarqube Archive
+  unarchive:
+    src: /opt/sonarqube-9.9.1.69595.zip
+    dest: /opt/
+    remote_src: yes
+  when: not sonar9.stat.exists
+
+
+
+- name: stat Sonar
+  stat: path=/opt/sonarqube
+  register: sonar
+
+
+
+- name: Move sonar9 to sonar
+  shell: mv /opt/sonarqube-*/ /opt/sonarqube/
+  when: not sonar.stat.exists
+
+
+
+- name: Create Sonar group
+  group:
+    name: sonar
+    state: present
+
+
+
+- name: Create Sonarqube properties file
+  template:
+        src: 'sonar.properties.j2'
+        dest: '/opt/sonarqube/conf/sonar.properties'
+
+
+
+- name: Create sonarqube systemd unit file
+  template:
+        src: 'sonarqube.service.j2'
+        dest: '/etc/systemd/system/sonarqube.service'
+
+
+
+- name: Create Sonarqube Folder
+  file:
+        path: /var/sonarqube
+        state: directory
+
+
+
+- name: Create and chown to sonar
+  file:
+      path: /opt/sonarqube
+      owner: sonar
+      group: sonar
+      recurse: yes
+
+
+
+- name: Create and chown to sonar
+  file:
+      path: /var/sonarqube
+      owner: sonar
+      group: sonar
+      recurse: yes
+
+
+
+- name: Reload systemd after editting
+  service:
+        daemon_reload: true
+
+
+
+- name: Open port for Sonarqube
+  firewalld:
+        port: 9000/tcp
+        permanent: yes
+        state: enabled
+
+
+
+- name: Reload Firewalld
+  service:
+        name: firewalld
+        state: reloaded
+
+
+
+- name: Start and Enable Sonarqube on boot
+  service:
+        name: sonarqube.service
+        state: started
+        enabled: yes
+

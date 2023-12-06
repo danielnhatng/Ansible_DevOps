@@ -1,0 +1,39 @@
+---
+- include_vars: 'main.yml'
+
+- name: Prepare directory for file
+  file:
+    path: /etc/docker-scirpt
+    state: directory
+
+
+
+- name: Get docker script
+  get_url:
+    url: 'https://get.docker.com'
+    dest: /etc/docker-scirpt/docker.sh
+    mode: '0755'
+    
+
+- name: Install docker with script
+  command: /etc/docker-scirpt/docker.sh
+
+
+
+- name: Add docker group
+  group:
+    name: docker
+    state: present
+
+- name: Add current user to docker
+  user:
+    group: docker
+    append: true
+    name: '{{ansible_user}}'
+  
+  
+- name: Start and enable docker
+  systemd:
+    name: docker
+    state: started
+    enabled: yes

@@ -1,0 +1,29 @@
+- name: All steps to install googleCloud CLI
+  hosts: centos_target2
+  become: yes
+  tasks:
+    - name: Add Google Cloud CLI repository
+      blockinfile:
+        path: /etc/yum.repos.d/google-cloud-sdk.repo
+        block: |
+          [google-cloud-cli]
+          name=Google Cloud CLI
+          baseurl="https://packages.cloud.google.com/yum/repos/cloud-sdk-el8-x86_64"
+          enabled=1
+          gpgcheck=1
+          repo_gpgcheck=0
+          gpgkey="https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg"
+        create: yes
+
+    - name: Upgrades red hat
+      yum:
+        update_cache: true
+
+
+    - name: Install GCP-CLI
+      yum: 
+        name: google-cloud-cli
+        state: present
+
+    - name: Run GCP-CLI
+      command: gcloud init

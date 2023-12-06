@@ -1,0 +1,99 @@
+---
+- name: Install SonarQube with PostgreSQL
+  hosts: centos_target2
+  become: yes
+
+  vars:
+    sonarqube_version: "8.9.2.46101"
+    sonarqube_download_url: "https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-{{ sonarqube_version }}.zip"
+    sonarqube_install_dir: "/opt/sonarqube"
+    sonarqube_user: "sonar"
+    sonarqube_group: "sonar"
+    postgresql_version: "12"  # Adjust as per your PostgreSQL version
+    postgresql_user: "sonarqube"
+    postgresql_password: "your_password"  # Set your desired password here
+
+  tasks:
+    - name: Install unzip
+      yum:
+        name: '{{item}}'
+        state: present
+      loop:
+        - wget
+        - unzip
+        - curl
+
+    - name: Install PostgreSQL and dependencies
+      yum:
+        name: ['postgresql-server', 'postgresql-contrib']
+        state: present
+    - name: postgre permissions
+      file:
+        path: /var/lib/pgsql
+        owner: postgres
+    - name: Initialize PostgreSQL database
+      command: postgresql-setup initdb
+      become: false
+
+
+    - name: Start and enable PostgreSQL service
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+
+    - name: Create SonarQube user and group
+      user:
+        name: "{{ sonarqube_user }}"
+        shell: /bin/bash
+        system: true
+        createhome: false
+
+    - name: Set PostgreSQL password for sonarqube user
+      shell: "echo 'ALTER USER {{ postgresql_user }} WITH PASSWORD '{{ postgresql_password }}';' | sudo -u postgres psql"
+      become: false
+
+    - name: Create PostgreSQL database
+      postgresql_db:
+        name: "{{ postgresql_user }}"
+        owner: "{{ postgresql_user }}"
+        login_user: postgres
+        login_password: your_postgres_password
+        state: present
+
+    - name: Download SonarQube
+      get_url:
+        url: "{{ sonarqube_download_url }}"
+        dest: "/tmp/sonarqube-{{ sonarqube_version }}.zip"
+
+    - name: Extract SonarQube
+      unarchive:
+        src: "/tmp/sonarqube-{{ sonarqube_version }}.zip"
+        dest: "{{ sonarqube_install_dir }}"
+        remote_src: true
+        owner: "{{ sonarqube_user }}"
+        group: "{{ sonarqube_group }}"
+        extra_opts: "--strip-components=1"
+
+    - name: Set SonarQube directory permissions
+      file:
+        path: "{{ sonarqube_install_dir }}"
+        state: directory
+        owner: "{{ sonarqube_user }}"
+        group: "{{ sonarqube_group }}"
+
+    - name: Configure SonarQube
+      copy:
+        src: "{{ sonarqube_install_dir }}/conf/sonar.properties"
+        dest: "{{ sonarqube_install_dir }}/conf/sonar.properties"
+        owner: "{{ sonarqube_user }}"
+        group: "{{ sonarqube_group }}"
+        mode: 0644
+      notify:
+        - Restart SonarQube
+
+  handlers:
+    - name: Restart SonarQube
+      systemd:
+        name: sonarqube
+        state: restarted

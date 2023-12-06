@@ -1,0 +1,50 @@
+- name: All steps to install jenkins on centOS
+  hosts: centos_target2
+  become: yes
+  tasks:
+    - name: Setup dependencies
+      yum:
+        name: wget
+        state: present
+
+
+    - name: Open Firewall Port
+      firewalld:
+        zone: public
+        port: 8080/tcp
+        permanent: true
+        state: enabled
+        immediate: true
+
+    - name: Upgrades yum
+      yum:
+        update_cache: true
+
+    - name: Install java version 11
+      yum:
+        name: java-11
+        state: present
+
+    - name: Add jenkins repo rpm_key
+      rpm_key:
+        key: ' https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key'
+
+    - name: Add jenkins repo
+      yum_repository:
+        name: jenkins
+        description: Jenkins repo
+        baseurl: "https://pkg.jenkins.io/redhat-stable/"
+        gpgcheck: yes
+        gpgkey: "https://pkg.jenkins.io/redhat-stable/jenkins.io.key" 
+
+    - name: Install jenkins
+      yum:
+        name: jenkins
+        state: present
+
+    - name: Start and enable jenkins
+      systemd:
+        name: jenkins
+        state: started
+        enabled: yes
+   

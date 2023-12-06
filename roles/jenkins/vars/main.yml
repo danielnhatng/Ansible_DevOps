@@ -1,0 +1,11 @@
+---
+# vars file for jenkins
+java: 'openjdk-11-jre-headless'
+
+jenkins:
+  ubuntu:
+    key: 'https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key'  
+    repo:  'deb https://pkg.jenkins.io/debian-stable binary/'
+  redhat:
+    key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+    repo: https://pkg.jenkins.io/redhat-stable/

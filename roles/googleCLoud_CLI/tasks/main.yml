@@ -1,0 +1,93 @@
+---
+# tasks file for googleCLoud_CLI
+- include_vars: 'main.yml'
+
+#Redhat
+- name: Add Google Cloud CLI repository
+  template:
+    dest:  /etc/apt.repos.d/google-cloud-sdk.repo
+    src: ubuntuCloudScript.j2
+  when: ansible_os_family == 'RedHat'
+
+- name: Upgrades red hat
+  yum:
+    update_cache: true
+  when: ansible_os_family == 'RedHat'
+
+
+- name: Install GCP-CLI
+  yum: 
+    name: google-cloud-cli
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Run GCP-CLI
+  command: gcloud init
+  when: ansible_os_family == 'RedHat'
+
+
+
+#Ubuntu
+
+
+
+- name: Upgrades ubuntu
+  apt:
+    update_cache: true
+  when: ansible_os_family == 'Debian'
+  
+
+- name: Install dependencies
+  apt:
+    name: '{{item}}'
+    state: present
+  loop:
+    -  apt-transport-https
+    - ca-certificates
+    - curl
+    - gnupg
+  when: ansible_os_family == 'Debian'
+
+
+
+
+  
+
+# - name: Add Google Cloud SDK repository
+#   lineinfile:
+#     path: /etc/apt/sources.list.d/google-cloud-sdk.list
+#     line: 'deb {{ gcp.repo }} cloud-sdk main'
+#     create: yes
+#   when: ansible_os_family == 'Debian'
+
+
+# - name: Check key
+#   stat:
+#     path: /tmp/apt-key.gpg
+#   register: apt_key
+  
+# - name: Download Google Cloud apt key
+#   get_url:
+#     url: "{{ gcp.key }}"
+#     dest: /tmp/apt-key.gpg
+#   when: ansible_os_family == 'Debian'
+
+# - name: Add key
+#   shell: apt-key add /tmp/apt-key.gpg
+#   when: not apt_key.stat.exist &&  ansible_os_family == 'Debian'
+
+- name: Add Google Cloud SDK apt-key
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+- name: Add Google Cloud SDK apt repository
+  apt_repository:
+    repo: "deb https://packages.cloud.google.com/apt cloud-sdk main"
+    state: present
+
+- name: Install GCP-CLI
+  apt:
+    name: google-cloud-cli
+    state: present
+  when: ansible_os_family == 'Debian'
